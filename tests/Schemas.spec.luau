@@ -104,15 +104,17 @@ return function(t)
 
 		t.describe("movement request", function()
 			t.it("rejects an unknown ability name", function()
-				t.expectFalse((Schemas.validateMovementRequest({
-					ability = "Teleport",
-					direction = Vector3.new(0, 0, -1),
-					clientTime = 1,
-				})))
+				for _, ability in { "Teleport", "Fly", "NoClip", "" } do
+					t.expectFalse((Schemas.validateMovementRequest({
+						ability = ability,
+						direction = Vector3.new(0, 0, -1),
+						clientTime = 1,
+					})), `{ability} should have been rejected`)
+				end
 			end)
 
-			t.it("accepts the three real abilities", function()
-				for _, ability in { "Slide", "DoubleJump", "Dash" } do
+			t.it("accepts every declared ability", function()
+				for _, ability in { "Slide", "DoubleJump", "Dash", "WallRun", "WallJump" } do
 					local ok = Schemas.validateMovementRequest({
 						ability = ability,
 						direction = Vector3.new(0, 0, -1),

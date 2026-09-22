@@ -16,6 +16,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Events = require(Shared.Network.Events)
@@ -29,7 +30,10 @@ type AbilityState = {
 	lastSlideAt: number,
 	lastDashAt: number,
 	lastDoubleJumpAt: number,
+	lastWallRunAt: number,
+	lastWallJumpAt: number,
 	airJumpsUsed: number,
+	wallChain: number,
 	lastGroundedAt: number,
 }
 
@@ -38,7 +42,10 @@ local function newState(): AbilityState
 		lastSlideAt = 0,
 		lastDashAt = 0,
 		lastDoubleJumpAt = 0,
+		lastWallRunAt = 0,
+		lastWallJumpAt = 0,
 		airJumpsUsed = 0,
+		wallChain = 0,
 		lastGroundedAt = os.clock(),
 	}
 end
@@ -88,6 +95,10 @@ function MovementService:_bindCharacter(player: Player, character: Model)
 		end
 		if new == Enum.HumanoidStateType.Landed or new == Enum.HumanoidStateType.Running then
 			state.airJumpsUsed = 0
+			-- Touching the ground clears the wall chain. This is the server's
+			-- copy of the rule that stops a player alternating walls to climb
+			-- out of an arena; the client enforces the same limit for feel.
+			state.wallChain = 0
 			state.lastGroundedAt = os.clock()
 		end
 	end)
@@ -100,6 +111,28 @@ function MovementService:_deny(player: Player, ability: string, reason: string)
 	if RateLimits.rejectionCount(player.UserId, "MovementAbility") > 40 then
 		warn(`[MovementService] sustained denials for {player.Name}: {reason}`)
 	end
+end
+
+--[[
+	Casts left and right from the character to confirm a near-vertical surface
+	is genuinely within reach. Mirrors MovementController:_detectWall, with a
+	slightly wider tolerance for client/server position skew.
+]]
+function MovementService:_hasAdjacentWall(character: Model, root: BasePart): boolean
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { character }
+	params.IgnoreWater = true
+
+	local distance = MovementConfig.WallRun.DetectionDistance * 1.6
+	for _, side in { -1, 1 } do
+		local hit = Workspace:Raycast(root.Position, root.CFrame.RightVector * side * distance, params)
+		if hit and math.abs(hit.Normal.Y) < 0.45 then
+			return true
+		end
+	end
+
+	return false
 end
 
 function MovementService:_handleRequest(player: Player, payload: any)
@@ -155,6 +188,51 @@ function MovementService:_handleRequest(player: Player, payload: any)
 
 		state.lastSlideAt = now
 		self.responseRemote:FireClient(player, "Slide", true)
+		return
+	end
+
+	if cleaned.ability == "WallRun" then
+		if now - state.lastWallRunAt < MovementConfig.WallRun.Cooldown - grace then
+			return self:_deny(player, "WallRun", "wall run on cooldown")
+		end
+
+		-- The hard ceiling on wall chaining. The client stops at the same
+		-- number for feel; this is the copy that actually binds.
+		if state.wallChain >= MovementConfig.Validation.MaxWallChain then
+			return self:_deny(player, "WallRun", "wall chain limit reached")
+		end
+
+		local root = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not root then
+			return self:_deny(player, "WallRun", "no root part")
+		end
+
+		-- Re-confirm a wall actually exists next to the player. Without this
+		-- the ability is a free midair speed boost anywhere on the map.
+		if not self:_hasAdjacentWall(character, root) then
+			return self:_deny(player, "WallRun", "no wall adjacent to player")
+		end
+
+		state.wallChain += 1
+		state.lastWallRunAt = now
+		self.responseRemote:FireClient(player, "WallRun", true)
+		return
+	end
+
+	if cleaned.ability == "WallJump" then
+		if now - state.lastWallJumpAt < MovementConfig.WallRun.WallJump.Cooldown - grace then
+			return self:_deny(player, "WallJump", "wall jump on cooldown")
+		end
+
+		-- The sanctioned wallhop: a wall jump refunds the air jump. The refund
+		-- is granted here, not claimed by the client, so it stays one per wall
+		-- rather than one per seam.
+		if MovementConfig.WallRun.WallJump.RefundsAirJump then
+			state.airJumpsUsed = 0
+		end
+
+		state.lastWallJumpAt = now
+		self.responseRemote:FireClient(player, "WallJump", true)
 		return
 	end
 

@@ -122,7 +122,7 @@ export type MovementRequest = {
 }
 
 local MOVEMENT_KEYS = { ability = true, direction = true, clientTime = true }
-local VALID_ABILITIES = { Slide = true, DoubleJump = true, Dash = true }
+local VALID_ABILITIES = { Slide = true, DoubleJump = true, Dash = true, WallRun = true, WallJump = true }
 
 function Schemas.validateMovementRequest(payload: any): (boolean, any)
 	if typeof(payload) ~= "table" then

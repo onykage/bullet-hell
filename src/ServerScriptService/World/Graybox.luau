@@ -150,6 +150,113 @@ function Graybox.ring(center: Vector3, radius: number, count: number, startDegre
 end
 
 --[[
+	Builds a closed ring of wall segments around a centre.
+
+	Segment width is DERIVED from the radius and count rather than passed in,
+	which is the whole point: the original arena walls were a fixed 22 studs
+	wide on a ring whose chord length nobody recomputed after the radius
+	changed, so the hub ended up with four open corners and players walked
+	straight out into the void.
+
+	chord = 2 * r * sin(pi / count), then an overlap factor on top. A ring built
+	this way cannot have a gap.
+]]
+export type RingOptions = {
+	center: Vector3,
+	radius: number,
+	height: number,
+	thickness: number,
+	segments: number,
+	color: Color3?,
+	material: Enum.Material?,
+	name: string?,
+	parent: Instance,
+	transparency: number?,
+}
+
+function Graybox.sealedRing(options: RingOptions): { Part }
+	local segments = math.max(3, options.segments)
+	local chord = 2 * options.radius * math.sin(math.pi / segments)
+	-- 1.2 covers the chord plus enough overlap that adjacent boxes intersect
+	-- rather than merely touching at their corners.
+	local width = chord * 1.2
+
+	local parts = {}
+	for index = 0, segments - 1 do
+		local angle = (index / segments) * 2 * math.pi
+		local position = options.center
+			+ Vector3.new(math.cos(angle) * options.radius, 0, math.sin(angle) * options.radius)
+		local frame = CFrame.lookAt(position, options.center) * CFrame.new(0, options.height * 0.5, 0)
+
+		table.insert(
+			parts,
+			Graybox.part({
+				name = options.name or "Wall",
+				size = Vector3.new(width, options.height, options.thickness),
+				cframe = frame,
+				color = options.color,
+				material = options.material,
+				transparency = options.transparency,
+				parent = options.parent,
+			})
+		)
+	end
+
+	return parts
+end
+
+--[[
+	An invisible, collidable barrier. Used for arena ceilings and the outer
+	perimeter: geometry the player must not pass but should not see.
+]]
+function Graybox.barrier(name: string, size: Vector3, cframe: CFrame, parent: Instance): Part
+	local part = Graybox.part({
+		name = name,
+		size = size,
+		cframe = cframe,
+		anchored = true,
+		canCollide = true,
+		transparency = 1,
+		parent = parent,
+	})
+	part.CastShadow = false
+	-- Invisible to raycasts as well as to the eye, so bullets are not stopped
+	-- by a wall the player cannot see.
+	part.CanQuery = false
+	return part
+end
+
+--[[
+	A decorative surface laid flush over the real collision floor.
+
+	These carry no collision and no raycast presence at all: the single bedrock
+	slab underneath is the only thing anything stands on or casts against. That
+	removes every seam, lip, and one-stud gap between adjacent floor pieces —
+	the class of bug that makes players fall through a world.
+]]
+function Graybox.surface(
+	name: string,
+	size: Vector3,
+	cframe: CFrame,
+	color: Color3,
+	material: Enum.Material,
+	parent: Instance
+): Part
+	local part = Graybox.part({
+		name = name,
+		size = size,
+		cframe = cframe,
+		color = color,
+		material = material,
+		canCollide = false,
+		parent = parent,
+	})
+	part.CanQuery = false
+	part.CanTouch = false
+	return part
+end
+
+--[[
 	Ensures a named Folder exists under a parent, creating it if absent.
 	Idempotent: re-running the builder never duplicates containers.
 ]]

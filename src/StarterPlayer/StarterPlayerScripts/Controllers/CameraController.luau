@@ -27,6 +27,14 @@ function CameraController:Init(context)
 
 	self.recoilOffset = Vector2.zero -- degrees, x = horizontal, y = vertical
 	self.shake = 0
+
+	-- Movement abilities lean on the camera to communicate state: the slide
+	-- drops it, the wall run rolls it. Both ease rather than snap, so entering
+	-- and leaving reads as motion instead of a glitch.
+	self.heightOffset = 0
+	self.targetHeightOffset = 0
+	self.roll = 0
+	self.targetRoll = 0
 	self.baseFieldOfView = 70
 	self.targetFieldOfView = 70
 
@@ -61,13 +69,37 @@ function CameraController:_update(deltaTime: number)
 
 	camera.FieldOfView += (self.targetFieldOfView - camera.FieldOfView) * math.min(1, 12 * deltaTime)
 
+	local ease = math.min(1, 10 * deltaTime)
+	self.heightOffset += (self.targetHeightOffset - self.heightOffset) * ease
+	self.roll += (self.targetRoll - self.roll) * ease
+
 	local shakeAmount = self.shake * self.shakeScale
 	local shakeOffset =
 		CFrame.new((math.random() - 0.5) * shakeAmount, (math.random() - 0.5) * shakeAmount, 0)
 
 	camera.CFrame = camera.CFrame
-		* CFrame.Angles(math.rad(self.recoilOffset.Y), math.rad(self.recoilOffset.X), 0)
+		* CFrame.new(0, self.heightOffset, 0)
+		* CFrame.Angles(math.rad(self.recoilOffset.Y), math.rad(self.recoilOffset.X), math.rad(self.roll))
 		* shakeOffset
+end
+
+--[[
+	Vertical camera offset in studs. The slide uses this instead of changing the
+	Humanoid's HipHeight: lowering HipHeight makes the character fall to the new
+	height, breaking ground contact at exactly the moment the slide needs it.
+]]
+function CameraController:SetHeightOffset(studs: number)
+	self.targetHeightOffset = studs
+end
+
+--[[
+	Camera roll in degrees, used to lean into a wall run. Eased and capped
+	because roll is vestibular: a hard snap is genuinely unpleasant. It scales
+	with the same accessibility setting as shake, so a player who turns shake
+	off gets no forced roll either.
+]]
+function CameraController:SetRoll(degrees: number)
+	self.targetRoll = math.clamp(degrees, -25, 25) * self.shakeScale
 end
 
 --[[

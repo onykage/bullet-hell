@@ -26,7 +26,7 @@ world, or anything requiring a published place.
 | C2 Shared types, IDs, registries | Complete |
 | C3 Bootstrap and lifecycle | Complete |
 | C4 Networking layer | Complete |
-| C5 Character and movement | Slide / double jump / dash; no mantle |
+| C5 Character and movement | Slide / double jump / dash / wall run; no mantle |
 | C6 Weapon foundation | Hitscan complete; projectile weapons deferred |
 | C7 Damage, health, status | Damage and health complete; statuses deferred |
 | C11 Boss and bullet-pattern runtime | Complete except the debug visualiser |
@@ -71,6 +71,7 @@ These are choices, not oversights. Each has a reason.
 | Arena entry is a CFrame move, not a teleport | Reserved servers need published place IDs (§R1). The entry/exit flow is already shaped as a transaction, so swapping in `TeleportService` touches two functions. |
 | No mods, skills, or stat calculator | Phase 3 in the roadmap. The trigger vocabulary and slot definitions are already in the weapon configs so the hooks exist. |
 | `StreamingEnabled` is off | The world is generated at runtime in one place; streaming becomes meaningful when authored regions land (§4.4). |
+| No mantle or vault | Wall running covers the traversal need for now. Mantle is worth revisiting once there is authored geometry with ledges to mantle onto. |
 | No audio | Sound asset IDs come from the Studio workstream (§R12). `AudioCue` names are already declared on every boss attack. |
 
 ## Suggested milestone 2
@@ -102,7 +103,12 @@ In Studio, confirm:
   off hard past 22 studs, the marksman rifle not at all
 - Head shots on a dummy produce a larger, coloured number with a `✦` marker
 - An SMG burst produces one merged number, not fourteen overlapping ones
-- Sprint + `C` slides; the camera drops and speed carries
+- Sprint + `C` slides; the camera drops and speed carries for about a second
+- Jumping alongside a wall starts a wall run: the camera rolls toward the wall,
+  you descend slowly, and `Space` launches you off with your air jump refunded
+- Chaining walls stops after three attaches until you touch the ground
 - `Q` dashes and the crosshair flashes cyan during the i-frame window
+- You cannot reach the top of the arena wall by wall jumping, and the invisible
+  ceiling stops you if the maths is ever wrong
 - Stepping on the purple pad starts the boss; conductors gate its damage
   reduction; dying to the pattern returns you to the hub and resets the arena

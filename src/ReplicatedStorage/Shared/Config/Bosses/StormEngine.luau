@@ -191,7 +191,10 @@ StormEngine.PhaseTiming = {
 StormEngine.Graybox = {
 	-- Used by WorldBuilder when the Studio workstream has not supplied geometry.
 	ArenaRadius = 78,
-	WallHeight = 34,
+	-- Tall enough that a wall run plus a wall jump cannot clear it. The ceiling
+	-- above is the actual guarantee; this is the height the player can see.
+	WallHeight = 46,
+	CeilingHeight = 64,
 	CoverPillarCount = 6,
 	CoverPillarRadius = 46,
 	BossHeight = 22,

@@ -56,7 +56,14 @@ and `Random`, and a shim of those types would drift from the real engine.
 | `Shift` | Sprint |
 | `C` / `Ctrl` | Crouch — **while sprinting, this slides** |
 | `Space` (in air) | Double jump |
+| `Space` (on a wall) | Wall jump — refunds your air jump |
 | `Q` | Dash — grants brief invulnerability |
+
+**Wall running:** get moving, jump, and hold alongside a wall. The camera rolls
+toward the wall while you are on it. There is a practice pair of walls south of
+the hub spawn. Jumping off a wall refunds your air jump, but you can only chain
+a few walls before touching the ground again — see
+[ADR 0003](docs/decisions/0003-wall-run.md) for why that limit exists.
 
 Walk onto the purple pad north of spawn to enter the Storm Engine arena.
 
@@ -64,7 +71,8 @@ Walk onto the purple pad north of spawn to enter the Storm Engine arena.
 
 - Five weapons — rifle, shotgun, pistol, SMG, marksman rifle — on one
   server-validated firing pipeline
-- Slide, double jump, and dash, predicted locally and validated server-side
+- Slide, double jump, dash, and wall running — predicted locally, validated
+  server-side
 - Floating damage numbers that merge rapid hits and distinguish crits and
   weak points
 - The Storm Engine: a two-phase bullet-hell boss with conductors, four
