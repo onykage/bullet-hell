@@ -140,10 +140,23 @@ function ArenaService:_enter(party: { Player })
 	self.stateRemote:FireAllClients({ state = "Entered", arenaId = StormEngine.ArenaId, partySize = #party })
 end
 
+--[[
+	Resolves the sanctuary return point by tag rather than reading it off the
+	world builder, so returning works against authored geometry too.
+]]
+function ArenaService:_sanctuarySpawn(): BasePart?
+	for _, instance in CollectionService:GetTagged(Contract.Tags.PlayerSpawn) do
+		if instance:IsA("BasePart") and instance:GetAttribute("SpawnType") == "Sanctuary" then
+			return instance
+		end
+	end
+	return self.world.hubSpawn
+end
+
 function ArenaService:_returnPlayer(player: Player, victory: boolean)
 	self.inArena[player] = nil
 
-	local hubSpawn = self.world.hubSpawn
+	local hubSpawn = self:_sanctuarySpawn()
 	local character = player.Character
 	if character and character.PrimaryPart and hubSpawn then
 		character:PivotTo(CFrame.new(hubSpawn.Position + Vector3.new(0, 5, 0)))

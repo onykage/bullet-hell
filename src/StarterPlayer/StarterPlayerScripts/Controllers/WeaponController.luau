@@ -50,6 +50,8 @@ function WeaponController:Init(context)
 
 	self.rng = Random.new()
 	self.viewmodel = nil :: Model?
+	self.viewmodelSpec = nil :: any
+	self.viewmodelSway = CFrame.identity
 end
 
 function WeaponController:Start()

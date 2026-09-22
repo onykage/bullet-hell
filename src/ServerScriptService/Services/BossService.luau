@@ -197,11 +197,20 @@ function BossService:_spawnConductors()
 		wrapper.Parent = self.bossFolder
 
 		local clone = (part :: BasePart):Clone()
+		-- The clone is runtime state, not authored content: strip the tag so a
+		-- later lookup cannot mistake it for a marker and wrap it again.
+		CollectionService:RemoveTag(clone, Contract.Tags.Conductor)
 		clone.Parent = wrapper
 		clone.Transparency = 0
-		wrapper.PrimaryPart = clone;
-		(part :: BasePart).Transparency = 1
-		(part :: BasePart).CanCollide = false
+		wrapper.PrimaryPart = clone
+
+		-- Hide the original completely. CanQuery must be cleared too: an
+		-- invisible part still blocks raycasts, and shots would land on the
+		-- unregistered marker instead of the damageable clone.
+		local marker = part :: BasePart
+		marker.Transparency = 1
+		marker.CanCollide = false
+		marker.CanQuery = false
 
 		self.combat:Register({
 			model = wrapper,
@@ -559,6 +568,7 @@ function BossService:_cleanup()
 	for model, record in self.conductors do
 		record.part.Transparency = 0
 		record.part.CanCollide = true
+		record.part.CanQuery = true
 		self.combat:Unregister(model)
 		if model.Parent then
 			model:Destroy()
