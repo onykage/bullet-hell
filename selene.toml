@@ -1,0 +1,14 @@
+std = "roblox"
+
+[lints]
+# Table literals mixing array and hash parts are idiomatic in Roblox config
+# modules and used throughout Shared/Config.
+mixed_table = "allow"
+
+# Shadowing a loop variable in a nested scope is common and readable here.
+shadowing = "allow"
+
+# _G is used in exactly two places: the double-execution guards in
+# ServerBootstrap and ClientBootstrap. Studio's play-solo can run a script
+# twice, and a cross-script guard is the only thing that catches it.
+global_usage = "allow"

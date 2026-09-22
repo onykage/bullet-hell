@@ -1,0 +1,22 @@
+# Toolchain binaries fetched by scripts/setup.sh
+tools/bin/
+
+# Build artifacts
+build/
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+!docs/**/*.rbxm
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Roblox / Wally
+Packages/
+ServerPackages/
+DevPackages/
+sourcemap.json

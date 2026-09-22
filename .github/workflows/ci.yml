@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Format, lint, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          path: tools/bin
+          key: toolchain-${{ hashFiles('scripts/setup.sh') }}
+
+      - name: Install toolchain
+        run: ./scripts/setup.sh
+
+      - name: Check formatting, lints, and build
+        run: make check
+
+      - name: Verify the generated contract is current
+        run: |
+          make contract
+          git diff --exit-code docs/INTEGRATION_CONTRACT.md \
+            || (echo "::error::docs/INTEGRATION_CONTRACT.md is stale — run 'make contract'"; exit 1)
+
+      - name: Build place file
+        run: make build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BulletHell-place
+          path: build/BulletHell.rbxlx

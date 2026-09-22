@@ -1,0 +1,6 @@
+# Rokit toolchain manifest (https://github.com/rojo-rbx/rokit)
+# If you have rokit installed, `rokit install` provisions everything.
+# If not, `./scripts/setup.sh` downloads the same rojo version into tools/bin.
+
+[tools]
+rojo = "rojo-rbx/rojo@7.7.0"
