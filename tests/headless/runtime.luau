@@ -113,9 +113,10 @@ Runtime.rewriteSource = rewriteSource
 
 -- Construction --------------------------------------------------------------
 
-function Runtime.new(projectRoot: string)
+function Runtime.new(projectRoot: string, options: { hostilePhysics: boolean? }?)
 	local self = setmetatable({
 		root = projectRoot,
+		hostilePhysics = if options then options.hostilePhysics else false,
 		moduleCache = {},
 		taggedByTag = {},
 		warnings = {},
@@ -227,10 +228,33 @@ function Runtime:_buildServices()
 	function runService:BindToRenderStep() end
 	function runService:UnbindFromRenderStep() end
 
+	--[[
+		PhysicsService.
+
+		`hostilePhysics` makes every call throw, reproducing an engine whose
+		collision groups are unavailable. That is not a hypothetical: a throw
+		from here happens during the Init phase, which runs for EVERY service
+		before any Start, so one unguarded collision call takes down
+		ServerBootstrap and the world is never built at all. The player falls
+		through an empty place and dies on repeat.
+
+		The world must survive it. smoke.luau boots both ways.
+	]]
 	local physicsService = {}
-	function physicsService:RegisterCollisionGroup() end
-	function physicsService:CollisionGroupSetCollidable() end
-	function physicsService:UnregisterCollisionGroup() end
+	local function physicsCall()
+		if runtime.hostilePhysics then
+			error("collision groups are unavailable", 0)
+		end
+	end
+	function physicsService:RegisterCollisionGroup()
+		physicsCall()
+	end
+	function physicsService:CollisionGroupSetCollidable()
+		physicsCall()
+	end
+	function physicsService:UnregisterCollisionGroup()
+		physicsCall()
+	end
 
 	self.services = {
 		Workspace = self.workspace,

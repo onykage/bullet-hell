@@ -321,6 +321,42 @@ if enemyFolder then
 	check("every enemy has a root part", #missingRoot == 0, table.concat(missingRoot, ", "))
 end
 
+-- Hostile-physics boot ------------------------------------------------------
+
+--[[
+	The regression test for the failure that started all this: an engine call
+	throwing during the Init phase must not cost the world.
+
+	Init runs for every service before any Start, so an unguarded throw in
+	CollisionGroupService:Init aborted ServerBootstrap and WorldBuilderService
+	never ran. The symptom was a player falling through an empty place, dying,
+	respawning, and falling again.
+]]
+print("\nhostile physics (collision groups unavailable):")
+
+local hostile = Runtime.new(ROOT, { hostilePhysics = true })
+local hostileOk, hostileErr = hostile:bootServer(serviceOrder)
+hostile:flushDeferred()
+
+check("server still boots when every PhysicsService call throws", hostileOk, hostileErr)
+
+if hostileOk then
+	local hostileWorld = hostile.workspace:FindFirstChild("World")
+	check("the world is still built", hostileWorld ~= nil and #hostileWorld:GetDescendants() > 50)
+
+	local hostileGround = hostileWorld and hostileWorld:FindFirstChild("Ground")
+	local hostileBedrock = hostileGround and hostileGround:FindFirstChild("Bedrock")
+	check("there is still a floor to stand on", hostileBedrock ~= nil and hostileBedrock.CanCollide == true)
+
+	local warned = false
+	for _, line in hostile.warnings do
+		if string.find(line, "CollisionGroups", 1, true) then
+			warned = true
+		end
+	end
+	check("the collision failure was reported, not swallowed", warned)
+end
+
 print("\nwarnings during boot:")
 if #runtime.warnings == 0 then
 	print("        (none)")

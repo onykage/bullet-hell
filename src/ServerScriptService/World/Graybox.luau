@@ -19,6 +19,9 @@ local Contract = require(Shared.Contract)
 
 local Graybox = {}
 
+-- Collision-group failures are warned about once each, not once per part.
+Graybox._warnedGroups = {} :: { [string]: boolean }
+
 export type PartOptions = {
 	name: string,
 	size: Vector3,
@@ -62,7 +65,19 @@ function Graybox.part(options: PartOptions): Part
 	part.TopSurface = Enum.SurfaceType.Smooth
 	part.BottomSurface = Enum.SurfaceType.Smooth
 	part.Shape = options.shape or Enum.PartType.Block
-	part.CollisionGroup = options.collisionGroup or Contract.CollisionGroups.WorldProp
+	-- Assigning a collision group that failed to register throws, and this is
+	-- the single chokepoint every piece of world geometry passes through. A
+	-- part in the wrong collision group is a bug; a world with no floor because
+	-- of one is a catastrophe. The group is best-effort, the part is not.
+	local group = options.collisionGroup or Contract.CollisionGroups.WorldProp
+	local grouped = pcall(function()
+		part.CollisionGroup = group
+	end)
+	if not grouped and not Graybox._warnedGroups[group] then
+		Graybox._warnedGroups[group] = true
+		warn(`[Graybox] collision group "{group}" is unavailable; parts will use Default`)
+	end
+
 	place(part, options.cframe or CFrame.new())
 	part.Parent = options.parent
 	return part
