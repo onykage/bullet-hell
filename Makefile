@@ -5,7 +5,7 @@ LINT  := $(BIN)/selene
 PLACE := build/BulletHell.rbxlx
 SRC   := src tests
 
-.PHONY: all setup build serve check headless format lint contract sourcemap notify clean
+.PHONY: all setup build serve serve-lan check headless format lint contract sourcemap notify clean
 
 all: check build
 
@@ -22,9 +22,16 @@ build: $(ROJO)
 	@$(ROJO) build default.project.json --output $(PLACE)
 	@echo "Built $(PLACE)"
 
-## Live-sync into an open Studio session via the Rojo plugin.
+## Live-sync into a Studio session on THIS machine.
 serve: $(ROJO)
 	@$(ROJO) serve default.project.json
+
+## Live-sync into Studio on another machine on the LAN.
+## Roblox Studio has no Linux build, so the usual setup is: edit here, run this,
+## and connect the Rojo plugin from a Windows or macOS box.
+serve-lan: $(ROJO)
+	@echo "Connect the Rojo Studio plugin to $$(hostname -I | awk '{print $$1}'):34872"
+	@$(ROJO) serve default.project.json --address 0.0.0.0 --port 34872
 
 ## The CI gate: formatting, static analysis, headless boot, clean build.
 check: $(ROJO) headless
