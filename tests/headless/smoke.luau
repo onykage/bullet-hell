@@ -17,6 +17,7 @@ local roblox = require("@lune/roblox")
 
 local Vector3 = roblox.Vector3
 
+local PlaceProperties = require("./placeproperties")
 local Runtime = require("./runtime")
 
 local ROOT = string.gsub(process.cwd, "/$", "")
@@ -356,6 +357,36 @@ if hostileOk then
 	end
 	check("the collision failure was reported, not swallowed", warned)
 end
+
+-- Place properties ----------------------------------------------------------
+
+--[[
+	Roblox refuses script writes to place properties with
+	"lacking capability plugin". Neither Lune nor the type checker models that,
+	so it is checked statically. See placeproperties.luau for the story.
+]]
+print("\nplace properties:")
+
+local violations, restricted = PlaceProperties.scan(ROOT)
+
+local restrictedCount = 0
+for _ in pairs(restricted) do
+	restrictedCount += 1
+end
+
+local detail = {}
+for _, violation in violations do
+	table.insert(
+		detail,
+		`{violation.path}:{violation.line} writes {violation.property}\n            {violation.text}`
+	)
+end
+
+check(
+	`no script writes a place property ({restrictedCount} guarded)`,
+	#violations == 0,
+	table.concat(detail, "\n          ")
+)
 
 print("\nwarnings during boot:")
 if #runtime.warnings == 0 then

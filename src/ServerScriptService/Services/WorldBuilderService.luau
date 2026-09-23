@@ -82,10 +82,29 @@ function WorldBuilderService:Init()
 end
 
 function WorldBuilderService:Start()
+	--[[
+		The world is built BEFORE anything else, and everything else is
+		guarded.
+
+		This service previously started its void-recovery watcher first. That
+		watcher's first line wrote Workspace.FallenPartsDestroyHeight, which
+		ordinary scripts are not allowed to do; it threw, Start never reached
+		the geometry, and the entire world silently did not exist. A safety net
+		must never be able to stop the thing it protects.
+	]]
+	self:_buildWorld()
+
 	-- Recovery runs whether or not the graybox generated, because falling out
 	-- of authored geometry is just as possible.
-	self:_startVoidRecovery()
+	local ok, err = pcall(function()
+		self:_startVoidRecovery()
+	end)
+	if not ok then
+		warn(`[WorldBuilder] void recovery unavailable: {err}`)
+	end
+end
 
+function WorldBuilderService:_buildWorld()
 	if Workspace:GetAttribute("GrayboxDisabled") == true then
 		print("[WorldBuilder] graybox disabled by Workspace attribute; using authored geometry")
 		return
@@ -472,8 +491,10 @@ end
 	a mistake, while a player who is visibly rescued reports it.
 ]]
 function WorldBuilderService:_startVoidRecovery()
-	Workspace.FallenPartsDestroyHeight = -500
-
+	-- FallenPartsDestroyHeight is NOT set here. It is a place property that
+	-- ordinary scripts are not permitted to write — the attempt throws
+	-- "lacking capability plugin" — so it lives in default.project.json, set
+	-- to -500 so recovery at VOID_Y always wins the race.
 	RunService.Heartbeat:Connect(function(deltaTime)
 		self.voidAccumulator += deltaTime
 		if self.voidAccumulator < VOID_CHECK_INTERVAL then

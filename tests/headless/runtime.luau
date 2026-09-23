@@ -25,8 +25,10 @@
 	SOURCE REWRITES and STUBBED REMOTES.
 ]]
 
+local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local roblox = require("@lune/roblox")
+local serde = require("@lune/serde")
 
 local Tree = require("./tree")
 
@@ -139,9 +141,18 @@ end
 function Runtime:_buildDataModel()
 	self.workspace = roblox.Instance.new("Workspace")
 	self.workspace.Name = "Workspace"
-	-- Mirrors default.project.json.
-	self.workspace.Gravity = 110
-	self.workspace.FallenPartsDestroyHeight = -250
+	-- Workspace properties come from default.project.json rather than a copy
+	-- kept here, so the harness cannot drift from the real place.
+	local project = serde.decode("json", fs.readFile(`{self.root}/default.project.json`))
+	local configured = project.tree.Workspace and project.tree.Workspace["$properties"] or {}
+	for name, value in configured do
+		local ok, err = pcall(function()
+			self.workspace[name] = value
+		end)
+		if not ok then
+			table.insert(self.warnings, `could not apply Workspace.{name}: {err}`)
+		end
+	end
 
 	self.replicatedStorage = roblox.Instance.new("ReplicatedStorage")
 

@@ -92,7 +92,12 @@ function DiagnosticsController:_checkBootStatus()
 
 	local detail = ReplicatedStorage:GetAttribute("BootError") or "no detail published"
 	self:_show(
-		`SERVER BOOT FAILED\n{detail}\n\nThe world was never built. Check the Output window on the server.`
+		-- The message is the whole story on purpose. Pointing at a server log
+		-- is useless when the failure is that the server never finished
+		-- starting, so there is no log to go and read.
+		`SERVER BOOT FAILED\n\n{detail}\n\n`
+			.. "No further services started and no world was built. "
+			.. "The line above is the complete error."
 	)
 end
 
@@ -110,9 +115,9 @@ function DiagnosticsController:_checkWorld()
 
 	local status = ReplicatedStorage:GetAttribute("BootStatus") or "unknown"
 	self:_show(
-		`WORLD IS EMPTY after {WORLD_TIMEOUT}s (boot status: {status})\n`
-			.. "Workspace.World has no children. Either WorldBuilderService did not run, "
-			.. "or it decided authored geometry was already present."
+		`WORLD IS EMPTY after {WORLD_TIMEOUT}s — boot status: {status}\n\n`
+			.. "Workspace.World has no children. Either WorldBuilderService never ran, "
+			.. "or it found authored geometry already present and stood down."
 	)
 end
 

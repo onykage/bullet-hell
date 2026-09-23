@@ -30,7 +30,7 @@
       "$className": "Workspace",
       "$properties": {
         "Gravity": 110,
-        "FallenPartsDestroyHeight": -250
+        "FallenPartsDestroyHeight": -500
       }
     },
     "Lighting": {
