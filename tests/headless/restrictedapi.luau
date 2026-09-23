@@ -1,8 +1,8 @@
 --!nocheck
 --[[
-	tests/headless/placeproperties.luau
+	tests/headless/restrictedapi.luau
 
-	Guards against writing place properties from a script at runtime.
+	Guards against Roblox APIs that a game script is not permitted to use.
 
 	Roblox sandboxes a class of properties so that only Studio or a plugin may
 	write them. A script that tries gets:
@@ -26,7 +26,29 @@
 local fs = require("@lune/fs")
 local serde = require("@lune/serde")
 
-local PlaceProperties = {}
+local RestrictedApi = {}
+
+--[[
+	Methods and services that only Studio or a plugin may use. A game script
+	calling one throws at runtime, exactly like a restricted property write.
+
+	Instance:GetDebugId is the one that bit us: it was building enemy entity
+	ids, so every enemy spawn threw.
+]]
+local RESTRICTED_CALLS = {
+	"GetDebugId",
+	"GetObjects",
+	"SavePlace",
+}
+
+local RESTRICTED_SERVICES = {
+	"CoreGui",
+	"Selection",
+	"ScriptEditorService",
+	"StudioService",
+	"ChangeHistoryService",
+	"PluginGuiService",
+}
 
 -- Restricted whether or not we set them in the project file.
 local ALWAYS_RESTRICTED = {
@@ -74,9 +96,9 @@ local function listLuauFiles(directory: string, into: { string })
 end
 
 --[[
-	Returns a list of violations: { path, line, property, text }.
+	Returns a list of violations: { path, line, kind, name, text }.
 ]]
-function PlaceProperties.scan(root: string)
+function RestrictedApi.scan(root: string)
 	local project = serde.decode("json", fs.readFile(`{root}/default.project.json`))
 
 	local restricted = {}
@@ -96,18 +118,37 @@ function PlaceProperties.scan(root: string)
 			-- Comments describe the rule; they do not break it.
 			local code = string.match(line, "^%s*%-%-") and "" or line
 
+			-- Plain prefix removal: the repo path may contain Lua pattern
+			-- magic characters such as "-".
+			local relative = string.sub(path, #root + 2)
+			local trimmed = string.match(line, "^%s*(.-)%s*$")
+
+			local function report(kind: string, name: string)
+				table.insert(violations, {
+					path = relative,
+					line = lineNumber,
+					kind = kind,
+					name = name,
+					text = trimmed,
+				})
+			end
+
 			for property in pairs(restricted) do
 				-- `something.Property =` but not `==`, and not a read.
-				local pattern = `[%w_%]%)]%.{property}%s*=[^=]`
-				if string.find(code, pattern) then
-					table.insert(violations, {
-						-- Plain prefix removal: the repo path may contain Lua
-						-- pattern magic characters such as "-".
-						path = string.sub(path, #root + 2),
-						line = lineNumber,
-						property = property,
-						text = string.match(line, "^%s*(.-)%s*$"),
-					})
+				if string.find(code, `[%w_%]%)]%.{property}%s*=[^=]`) then
+					report("writes place property", property)
+				end
+			end
+
+			for _, method in RESTRICTED_CALLS do
+				if string.find(code, `:{method}%s*%(`) then
+					report("calls plugin-only method", method)
+				end
+			end
+
+			for _, service in RESTRICTED_SERVICES do
+				if string.find(code, `GetService%("{service}"%)`) then
+					report("uses plugin-only service", service)
 				end
 			end
 		end
@@ -116,4 +157,4 @@ function PlaceProperties.scan(root: string)
 	return violations, restricted
 end
 
-return PlaceProperties
+return RestrictedApi

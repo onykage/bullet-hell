@@ -65,6 +65,14 @@
       "$properties": {
         "RespectFilteringEnabled": true
       }
+    },
+    "TextChatService": {
+      "$className": "TextChatService",
+      "$properties": {
+        "ChatVersion": "TextChatService",
+        "CreateDefaultTextChannels": true,
+        "CreateDefaultCommands": true
+      }
     }
   },
   "globIgnorePaths": [

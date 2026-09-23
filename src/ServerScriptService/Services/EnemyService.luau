@@ -49,6 +49,9 @@ function EnemyService:Init(context)
 	self.world = context.services.WorldBuilderService
 	self.enemies = {} :: { [Model]: Enemy }
 	self.accumulator = 0
+	-- Entity ids come from a counter, not Instance:GetDebugId. GetDebugId
+	-- requires plugin capability and throws when a game script calls it.
+	self.nextEnemyNumber = 0
 end
 
 function EnemyService:Start()
@@ -101,6 +104,7 @@ end
 
 function EnemyService:Spawn(enemyId: string, position: Vector3): Model
 	local config = EnemyConfig.expect(enemyId)
+	self.nextEnemyNumber += 1
 
 	local model = Instance.new("Model")
 	model.Name = config.DisplayName
@@ -145,7 +149,7 @@ function EnemyService:Spawn(enemyId: string, position: Vector3): Model
 		model = model,
 		faction = "Enemy",
 		maxHealth = config.Health,
-		entityId = `{enemyId}_{root:GetDebugId(6)}`,
+		entityId = `{enemyId}_{self.nextEnemyNumber}`,
 		resetHealthAfter = config.ResetHealthAfter,
 	})
 

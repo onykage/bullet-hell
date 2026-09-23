@@ -17,7 +17,7 @@ local roblox = require("@lune/roblox")
 
 local Vector3 = roblox.Vector3
 
-local PlaceProperties = require("./placeproperties")
+local RestrictedApi = require("./restrictedapi")
 local Runtime = require("./runtime")
 
 local ROOT = string.gsub(process.cwd, "/$", "")
@@ -365,9 +365,9 @@ end
 	"lacking capability plugin". Neither Lune nor the type checker models that,
 	so it is checked statically. See placeproperties.luau for the story.
 ]]
-print("\nplace properties:")
+print("\nrestricted API:")
 
-local violations, restricted = PlaceProperties.scan(ROOT)
+local violations, restricted = RestrictedApi.scan(ROOT)
 
 local restrictedCount = 0
 for _ in pairs(restricted) do
@@ -378,12 +378,12 @@ local detail = {}
 for _, violation in violations do
 	table.insert(
 		detail,
-		`{violation.path}:{violation.line} writes {violation.property}\n            {violation.text}`
+		`{violation.path}:{violation.line} {violation.kind} {violation.name}\n            {violation.text}`
 	)
 end
 
 check(
-	`no script writes a place property ({restrictedCount} guarded)`,
+	`no script uses a restricted API ({restrictedCount} properties + plugin-only calls guarded)`,
 	#violations == 0,
 	table.concat(detail, "\n          ")
 )
