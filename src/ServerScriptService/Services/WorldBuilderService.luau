@@ -183,9 +183,11 @@ function WorldBuilderService:_buildHub()
 		hub
 	)
 
-	-- A sealed ring, with a doorway cut toward the arena so the hub reads as a
-	-- place you leave rather than a box.
-	local walls = Graybox.sealedRing({
+	-- A sealed ring with a doorway toward the arena, so the hub reads as a
+	-- place you leave rather than a box. The gap is part of the ring's own
+	-- definition, and bedrock continues underneath it, so it is a doorway and
+	-- not a hole. +Z is 90 degrees in the ring's angle space.
+	Graybox.sealedRing({
 		center = HUB_CENTER,
 		radius = HUB_RADIUS,
 		height = 18,
@@ -195,19 +197,9 @@ function WorldBuilderService:_buildHub()
 		material = Enum.Material.Concrete,
 		name = "HubWall",
 		parent = hub,
+		gapCenter = 90,
+		gapWidth = 34,
 	})
-
-	-- Remove the two segments nearest the arena to form a gate. The bedrock
-	-- continues underneath, so the opening is a doorway, not a hole.
-	table.sort(walls, function(a, b)
-		return (a.Position - Vector3.new(0, a.Position.Y, HUB_RADIUS * 2)).Magnitude
-			< (b.Position - Vector3.new(0, b.Position.Y, HUB_RADIUS * 2)).Magnitude
-	end)
-	for index = 1, 2 do
-		if walls[index] then
-			walls[index]:Destroy()
-		end
-	end
 
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "HubSpawn"
@@ -218,6 +210,8 @@ function WorldBuilderService:_buildHub()
 	spawn.Material = Enum.Material.Neon
 	spawn.Duration = 0
 	spawn.Parent = hub
+	-- Keep Position in step with CFrame; see Graybox.place.
+	spawn.Position = spawn.CFrame.Position
 	Graybox.mark(spawn, Contract.Tags.PlayerSpawn, "hub_spawn_main", {
 		SpawnId = "hub_main",
 		SpawnType = "Sanctuary",

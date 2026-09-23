@@ -33,15 +33,37 @@ to `localhost:34872`.
 |---|---|
 | `make build` | Build `build/BulletHell.rbxlx` |
 | `make serve` | Live-sync into an open Studio session |
-| `make check` | Format check + static analysis + clean build (the CI gate) |
+| `make check` | Format, lint, headless boot, clean build (the CI gate) |
+| `make headless` | Boot the server on Lune and assert the world it builds |
 | `make format` | Apply StyLua formatting |
 | `make notify` | Post the current build to Discord (needs `DISCORD_WEBHOOK_URL`) |
 | `make clean` | Remove build artifacts |
 
-Unit specs live in [`tests/`](tests) and run **in-engine** on every Studio
-play-test — watch the Output window for `[Tests] N passed`. They run in Roblox
-rather than headlessly because the modules under test use `Vector3`, `CFrame`
-and `Random`, and a shim of those types would drift from the real engine.
+## Testing
+
+There are two suites, because Roblox Studio does not run on Linux and the two
+halves of the problem need different tools.
+
+**Headless boot test** — `make headless`, also part of `make check` and CI.
+Boots the whole server on [Lune](https://github.com/lune-org/lune), a standalone
+Luau runtime with Roblox datatypes, and asserts the world it builds: bedrock,
+a sealed perimeter, contract tags and attributes, arena wall overlap, marker
+lookups, enemy spawns. This catches the *"nothing loads"* class of failure — a
+service erroring during Init or Start — without Studio.
+
+It is a smoke test, not an emulator. It cannot see physics, replication,
+rendering, or anything on a timer, and it says so: raycasts always miss and
+timers never fire. See [`tests/headless/runtime.luau`](tests/headless/runtime.luau)
+for the two documented compromises (source rewrites and stubbed remotes).
+
+**In-engine specs** — [`tests/*.spec.luau`](tests), run on every Studio
+play-test. Watch the Output window for `[Tests] N passed`. These cover the pure
+calculators and every client-to-server payload validator, and they run in Roblox
+rather than headlessly because a shim of `Vector3`/`CFrame`/`Random` would drift
+from the real engine.
+
+If the world ever fails to appear in Studio, the client now shows a red banner
+naming the failing service, rather than leaving you with an empty place.
 
 ## Controls
 

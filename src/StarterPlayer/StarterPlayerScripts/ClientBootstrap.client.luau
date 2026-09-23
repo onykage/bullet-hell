@@ -20,6 +20,8 @@ end
 _G.__BULLET_HELL_CLIENT_STARTED = true
 
 local CONTROLLER_ORDER = {
+	-- First, so it can report a failure in anything that follows.
+	"DiagnosticsController",
 	"InputController",
 	"CameraController",
 	"EffectsController",

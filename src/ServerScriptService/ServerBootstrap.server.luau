@@ -58,6 +58,8 @@ for _, name in SERVICE_ORDER do
 
 	local ok, result = pcall(require, module)
 	if not ok then
+		ReplicatedStorage:SetAttribute("BootStatus", "Failed")
+		ReplicatedStorage:SetAttribute("BootError", `requiring {name}: {result}`)
 		error(`[Bootstrap] failed to require {name}: {result}`, 0)
 	end
 
@@ -73,22 +75,41 @@ local context = {
 	isStudio = RunService:IsStudio(),
 }
 
-for _, service in ordered do
-	if service.Init then
-		local ok, err = pcall(service.Init, service, context)
+--[[
+	A boot failure used to be invisible: the error landed in the server log, the
+	world never built, and the player saw an empty place with no explanation.
+
+	The status is now published to clients as an attribute, so the diagnostics
+	overlay can say what broke instead of leaving a blank screen. The failure is
+	still fatal — a half-initialised server is worse than one that refuses to
+	boot — it is just no longer silent.
+]]
+local function publish(status: string, detail: string?)
+	ReplicatedStorage:SetAttribute("BootStatus", status)
+	ReplicatedStorage:SetAttribute("BootError", detail)
+end
+
+publish("Starting", nil)
+
+local function runPhase(method: string)
+	for _, service in ordered do
+		local callback = service[method]
+		if not callback then
+			continue
+		end
+
+		local ok, err = pcall(callback, service, context)
 		if not ok then
-			error(`[Bootstrap] {service.Name}:Init failed: {err}`, 0)
+			local message = `{service.Name}:{method} failed — {err}`
+			publish("Failed", message)
+			error(`[Bootstrap] {message}`, 0)
 		end
 	end
 end
 
-for _, service in ordered do
-	if service.Start then
-		local ok, err = pcall(service.Start, service, context)
-		if not ok then
-			error(`[Bootstrap] {service.Name}:Start failed: {err}`, 0)
-		end
-	end
-end
+runPhase("Init")
+runPhase("Start")
+
+publish("Ready", nil)
 
 print(string.format("[Bootstrap] %d services started in %.0f ms", #ordered, (os.clock() - START_TIME) * 1000))

@@ -66,5 +66,9 @@
         "RespectFilteringEnabled": true
       }
     }
-  }
+  },
+  "globIgnorePaths": [
+    "tests/headless",
+    "tests/headless/**"
+  ]
 }

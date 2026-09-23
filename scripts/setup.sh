@@ -6,6 +6,7 @@ set -euo pipefail
 ROJO_VERSION="7.7.0"
 STYLUA_VERSION="2.5.2"
 SELENE_VERSION="0.31.0"
+LUNE_VERSION="0.10.5"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN_DIR="$ROOT/tools/bin"
 mkdir -p "$BIN_DIR"
@@ -55,6 +56,11 @@ SELENE_OS="$OS"
 [[ "$SELENE_OS" == "macos" ]] && SELENE_OS="macos"
 fetch selene "$SELENE_VERSION" \
   "https://github.com/Kampfkarren/selene/releases/download/${SELENE_VERSION}/selene-${SELENE_VERSION}-${SELENE_OS}.zip"
+
+# Lune: a standalone Luau runtime with Roblox datatypes. Powers the headless
+# harness in tests/headless, which boots the server without Roblox Studio.
+fetch lune "$LUNE_VERSION" \
+  "https://github.com/lune-org/lune/releases/download/v${LUNE_VERSION}/lune-${LUNE_VERSION}-${OS}-${ARCH}.zip"
 
 if [[ ! -f "$ROOT/roblox.toml" ]]; then
   echo "Generating the Roblox standard library for selene ..."

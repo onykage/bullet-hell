@@ -34,11 +34,26 @@ export type PartOptions = {
 	shape: Enum.PartType?,
 }
 
+--[[
+	Places a part and keeps Position in step with CFrame.
+
+	Assigning Position after CFrame is a no-op in Roblox — Position is a view of
+	CFrame's translation, and setting it preserves rotation. It is written
+	explicitly because the headless harness (tests/headless) runs on Lune, which
+	stores the two properties independently, so every `.Position` read in the
+	world code would otherwise see an unset property there.
+]]
+local function place(part: BasePart, cframe: CFrame)
+	part.CFrame = cframe
+	part.Position = cframe.Position
+end
+
+Graybox.place = place
+
 function Graybox.part(options: PartOptions): Part
 	local part = Instance.new("Part")
 	part.Name = options.name
 	part.Size = options.size
-	part.CFrame = options.cframe or CFrame.new()
 	part.Color = options.color or Color3.fromRGB(120, 120, 128)
 	part.Material = options.material or Enum.Material.SmoothPlastic
 	part.Anchored = if options.anchored ~= nil then options.anchored else true
@@ -48,6 +63,7 @@ function Graybox.part(options: PartOptions): Part
 	part.BottomSurface = Enum.SurfaceType.Smooth
 	part.Shape = options.shape or Enum.PartType.Block
 	part.CollisionGroup = options.collisionGroup or Contract.CollisionGroups.WorldProp
+	place(part, options.cframe or CFrame.new())
 	part.Parent = options.parent
 	return part
 end
@@ -106,7 +122,7 @@ function Graybox.pad(name: string, radius: number, cframe: CFrame, color: Color3
 	})
 	-- Cylinder parts extend along X; stand it up to lie flat on the floor.
 	pad.Size = Vector3.new(0.4, radius * 2, radius * 2)
-	pad.CFrame = cframe * CFrame.Angles(0, 0, math.rad(90))
+	place(pad, cframe * CFrame.Angles(0, 0, math.rad(90)))
 	return pad
 end
 
@@ -172,6 +188,12 @@ export type RingOptions = {
 	name: string?,
 	parent: Instance,
 	transparency: number?,
+	-- An optional doorway. Segments whose centre falls within `gapWidth`
+	-- degrees of `gapCenter` are omitted. Building the gap into the ring keeps
+	-- the seal and the opening described in one place; cutting one afterwards
+	-- leaves the ring briefly wrong with nothing to check it again.
+	gapCenter: number?,
+	gapWidth: number?,
 }
 
 function Graybox.sealedRing(options: RingOptions): { Part }
@@ -181,12 +203,25 @@ function Graybox.sealedRing(options: RingOptions): { Part }
 	-- rather than merely touching at their corners.
 	local width = chord * 1.2
 
+	local gapCenter = options.gapCenter
+	local gapWidth = options.gapWidth or 0
+
 	local parts = {}
 	for index = 0, segments - 1 do
-		local angle = (index / segments) * 2 * math.pi
-		local position = options.center
-			+ Vector3.new(math.cos(angle) * options.radius, 0, math.sin(angle) * options.radius)
-		local frame = CFrame.lookAt(position, options.center) * CFrame.new(0, options.height * 0.5, 0)
+		local degrees = (index / segments) * 360
+
+		if gapCenter and gapWidth > 0 then
+			local delta = math.abs((degrees - gapCenter) % 360)
+			delta = math.min(delta, 360 - delta)
+			if delta < gapWidth * 0.5 then
+				continue
+			end
+		end
+
+		local angle = math.rad(degrees)
+		local offset = Vector3.new(math.cos(angle) * options.radius, 0, math.sin(angle) * options.radius)
+		local frame = CFrame.lookAt(options.center + offset, options.center)
+			* CFrame.new(0, options.height * 0.5, 0)
 
 		table.insert(
 			parts,

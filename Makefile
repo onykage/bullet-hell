@@ -5,7 +5,7 @@ LINT  := $(BIN)/selene
 PLACE := build/BulletHell.rbxlx
 SRC   := src tests
 
-.PHONY: all setup build serve check format lint contract sourcemap notify clean
+.PHONY: all setup build serve check headless format lint contract sourcemap notify clean
 
 all: check build
 
@@ -26,15 +26,23 @@ build: $(ROJO)
 serve: $(ROJO)
 	@$(ROJO) serve default.project.json
 
-## The CI gate: formatting + static analysis + a clean build.
-## Unit specs run in-engine on every Studio play-test (see TestRunner).
-check: $(ROJO)
+## The CI gate: formatting, static analysis, headless boot, clean build.
+check: $(ROJO) headless
 	@$(LUA) --check $(SRC)
 	@$(LINT) $(SRC)
 	@mkdir -p build
 	@$(ROJO) build default.project.json --output build/.check.rbxlx >/dev/null
 	@rm -f build/.check.rbxlx
 	@echo "check: OK"
+
+## Boot the server on Lune and assert the world it builds.
+## Catches the "nothing loads" class of failure without Roblox Studio.
+## In-engine specs (tests/*.spec.luau) still run on every Studio play-test.
+headless: $(BIN)/lune
+	@$(BIN)/lune run tests/headless/smoke.luau
+
+$(BIN)/lune:
+	@./scripts/setup.sh
 
 format:
 	@$(LUA) $(SRC)
